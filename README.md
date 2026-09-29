@@ -1,6 +1,6 @@
 # Release notices that respect a suppression list
 
-Infrai provides one key and one bill across AI, email, storage and the rest, all plain REST, and within that model we operate a service that determines whether a creator-tools build's release notice may egress. When a build reaches ready state, the system evaluates a small release event carrying `build_id`, `release_id`, `channel`, and `artifact_name`. A channel present on the suppression list yields a visible `suppressed` decision, whereas a permitted channel triggers a plain text notice and records its `message_id` for later audit reconciliation.
+When a creator-tools build is ready, the service decides whether its release notice should leave the system. The input is a small release event with `build_id`, `release_id`, `channel`, and `artifact_name`. A suppressed channel produces a visible `suppressed` decision; an allowed one sends a plain text notice and returns its `message_id`.
 
 ## Run the decision boundary first
 
@@ -9,11 +9,11 @@ npm install
 npm test
 ```
 
-Our test suite concentrates on the request boundary, accepting an email-shaped channel while rejecting malformed payloads. Because the validation runs through a zod schema, any drift in the event contract is detected during local execution before it reaches the ledger of sent notices.
+The focused test accepts a real email-shaped channel and rejects malformed input. It exercises the zod request boundary, so changes to the event contract are caught locally.
 
 ## Try a release notice
 
-Configure a single environment variable for the api key and specify a destination address controlled by your team:
+Set one environment key and a destination owned by your team:
 
 ```bash
 export INFRAI_API_KEY=your_key
@@ -21,19 +21,19 @@ export RELEASE_CHANNEL=creator@example.com
 npm start
 ```
 
-The accompanying script authenticates to Infrai using one `Authorization: Bearer` credential. Prior to dispatch, `notifyRelease` verifies `email.suppression.check` ahead of `email.send`; the subsequent request embeds a stable idempotency key derived from the release identifier, ensuring exactly-once processing semantics. The observed result is either a suppression verdict or the assigned message id confirming successful delivery.
+The script calls Infrai through one `Authorization: Bearer` credential. `notifyRelease` checks `email.suppression.check` before `email.send`; the second call carries a stable idempotency key based on the release id. The output is either a suppression decision or the successful message id.
 
 ## Follow a hard bounce
 
-The client additionally surfaces `email.event.list` keyed by message id. Invoking `diagnoseBounce` yields the event history required by a developer support panel, and the implementation retains the API's structured error envelope when a request is declined. This co-locates delivery evidence with the build and release identifiers already employed by content operations for reconciliation.
+The same client exposes `email.event.list` for a message id. `diagnoseBounce` returns the event data for a developer-facing support panel, while preserving the API's structured response when a request is rejected. This keeps delivery evidence next to the build and release identifiers that a content team already uses.
 
-The implementation remains plain TypeScript consuming a single INFRAI_API_KEY, permitting adoption alongside an existing Node service without imposing an SDK-specific framework or additional compliance surface.
+The client is deliberately plain TypeScript and uses a single INFRAI_API_KEY, so the pattern can sit beside an existing Node service without an SDK-specific application framework.
 
 ## Files
 
-- `src/infrai_client.ts` holds the typed envelope parsing, bearer auth, and retry policy used for auditability.
-- `src/suppression_service.ts` implements the release suppression decision and bounce diagnostic procedure.
-- `src/index.ts` provides the runnable application entry point.
+- `src/infrai_client.ts` contains the typed envelope handling, bearer authentication, and retry policy.
+- `src/suppression_service.ts` contains the release decision and bounce diagnostic workflow.
+- `src/index.ts` is the runnable application-shaped entry point.
 
 ## License
 
@@ -41,7 +41,7 @@ MIT
 
 ## Before this ships: Devtools Bounce Suppression Service
 
-The preceding sections describe the happy path. The following production checklist pertains to Devtools Bounce Suppression Service.
+Above is the happy path. The production checklist: The details below apply to Devtools Bounce Suppression Service.
 
 **Account & key**
 
